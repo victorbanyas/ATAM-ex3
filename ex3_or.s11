@@ -59,3 +59,21 @@ updateString: mov (r4), r0(r1)
   be endNextString
   dec r0 ;Move to the previous char
   br nextStringLoop
+
+wordIsEqual: mov r0, -(sp)
+  mov r1, -(sp)
+  mov r0, 8(sp) ;Move the first address into r0
+  mov r1, 10(sp) ;Move the second address into r1
+  mov r2, -(sp)
+  mov #1, r2 ;Set the return value to 1
+compLoop: cmpb (r0)+, (r1)+ ;Compare the letters
+  bne notEqual ;If they aren't rqual, leave the loop
+  cmpb (r0), #'@ ;If they're equal to the ending char, leave the loop
+  be endWordIsEqual
+  br compLoop ;Jump back to the loop if none of the conditions have been met
+notEqual: mov #0, r2 ;If there's no match, set the return value to 0
+endWordIsEqual: mov r2, 14(sp) ;Save the return value before the input
+  mov (sp)+, r2
+  mov (sp)+, r1
+  mov (sp)+, r0 ;Restore the values
+  rts pc
