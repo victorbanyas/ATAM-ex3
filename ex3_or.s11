@@ -1,0 +1,61 @@
+. = torg + 1000
+main:
+  mov pc, sp
+  tst -(sp) ;Initialize the stack
+
+isStart:
+  mov r0, -(sp)
+  mov r1, -(sp)
+  mov r2, -(sp)
+  mov r3, -(sp) ;Saving the register's values for later.
+  mov r1, (r5)+ ;Moving length into r1(inline). COULD POTENTIALLY BE PROBLEMATIC
+  mov r2, (r5)+ ;Moving str address into r2;
+  mov r0, #Setmin
+  mov r5, #1 ;Setting the default return value to 1.
+starterLoop:  cmpb (r0), (r2)+  ;Check if the current char is the minimal one.
+  bne notStarter
+  sob r1, starterLoop
+  br endIsStart
+notStarter: mov r5, #0 ;Setting the return value to 0
+endIsStart: mov (sp)+, r3
+      mov (sp)+, r2
+      mov (sp)+, r1
+      mov (sp)+, r0 ;Restoring the values
+      tst (sp)+
+      mov r5, -(sp) ;Save the return value in the stack.
+      rts r5
+
+nextString:
+  mov r0, -(sp)
+  mov r1, -(sp) ;Save the registers
+  mov 8(sp), r0 ;Save the length in r0
+  mov 10(sp), r1 ;Save the address in r1
+  mov r2, -(sp)
+  mov r3, -(sp)
+  mov r4, -(sp)
+  mov #Delim, r2
+  mov #Setmax, r3
+  mov #Setmin, r4
+
+nextStringLoop:
+  cmpb r0(r1), (r2)  ;COULD POTENTIALLY CAUSE PROBLEMS -compare the delim to the current one
+  be updateString
+  cmpb r0(r1), (r3) ;If the char isn't the delim, compare it to the biggest one in the alphabet
+  bne nextChar
+  movb (r2), r0(r1) ;If the char is the biggest one in the alphabet, replace it with the delim
+contLoop: sob r0, nextStringLoop
+nextChar: ADD 1, 'r0(r1) ;COULD POTENTIALLY NOT WORK- move to the next character
+  cmp r0, #0 ;If this wasn't the first character, return to the loop
+  bne contLoop
+endNextString:
+  mov (sp)+, r4
+  mov (sp)+, r3
+  mov (sp)+, r2
+  mov (sp)+, r1
+  mov (sp)+, r0
+  rts pc
+updateString: mov (r4), r0(r1)
+  cmp r0, #0 ;If you're reached the first char, end the subroutine.
+  be endNextString
+  dec r0 ;Move to the previous char
+  br nextStringLoop
