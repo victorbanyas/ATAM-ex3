@@ -2,6 +2,61 @@
 main:
   mov pc, sp
   tst -(sp) ;Initialize the stack
+  mov #word1, r0
+  jsr r5, isStart
+  .word 2
+  .r0
+  mov r0, -(sp)
+  mov #2, -(sp)
+  jsr pc, nextString
+  mov (sp)+, r2
+  mov r0, -(sp)
+  jsr wordIsEqual
+  mov #word2, r0
+  jsr r5, isStart
+  .word 2
+  .r0
+  mov r0, -(sp)
+  mov #1, -(sp)
+  jsr pc, nextString
+  mov (sp)+, r2
+  mov #word1, r2
+  mov r2, -(sp)
+  jsr wordIsEqual
+  mov #word3, r0
+  jsr r5, isStart
+  .word 2
+  .r0
+  mov r0, -(sp)
+  mov #1, -(sp)
+  jsr pc, nextString
+  mov (sp)+, r2
+  mov #word4, r2
+  mov r2, -(sp)
+  jsr wordIsEqual
+  mov #word4, r0
+  jsr r5, isStart
+  .word 2
+  .r0
+  mov r0, -(sp)
+  mov #1, -(sp)
+  jsr pc, nextString
+  mov (sp)+, r2
+  mov r0, -(sp)
+  jsr wordIsEqual
+  mov #word5, r0
+  jsr r5, isStart
+  .word 2
+  .r0
+  mov r0, -(sp)
+  mov #3, -(sp)
+  jsr pc, nextString
+  mov (sp)+, r2
+  mov r0, -(sp)
+  jsr wordIsEqual
+  halt
+
+
 
 isStart:
   mov r0, -(sp)
@@ -33,31 +88,36 @@ nextString:
   mov r2, -(sp)
   mov r3, -(sp)
   mov r4, -(sp)
+  mov r5, -(sp)
   mov #Delim, r2
   mov #Setmax, r3
   mov #Setmin, r4
-
+  mov r5, r1
+  add r5, r0
 nextStringLoop:
-  cmpb r0(r1), (r2)  ;COULD POTENTIALLY CAUSE PROBLEMS -compare the delim to the current one
+  cmpb (r5), (r2)  ;COULD POTENTIALLY CAUSE PROBLEMS -compare the delim to the current one
   be updateString
-  cmpb r0(r1), (r3) ;If the char isn't the delim, compare it to the biggest one in the alphabet
+  cmpb (r5), (r3) ;If the char isn't the delim, compare it to the biggest one in the alphabet
   bne nextChar
-  movb (r2), r0(r1) ;If the char is the biggest one in the alphabet, replace it with the delim
-contLoop: sob r0, nextStringLoop
-nextChar: ADD 1, 'r0(r1) ;COULD POTENTIALLY NOT WORK- move to the next character
-  cmp r0, #0 ;If this wasn't the first character, return to the loop
+  movb (r2), r5 ;If the char is the biggest one in the alphabet, replace it with the delim
+  cmp r1, r5
+  be endNextString
+contLoop: br nextStringLoop
+nextChar: ADD 1, (r5) ;COULD POTENTIALLY NOT WORK- move to the next character
+  cmp r5, r1 ;If this wasn't the first character, return to the loop
   bne contLoop
 endNextString:
+  mov (sp)+, r5
   mov (sp)+, r4
   mov (sp)+, r3
   mov (sp)+, r2
   mov (sp)+, r1
   mov (sp)+, r0
   rts pc
-updateString: mov (r4), r0(r1)
-  cmp r0, #0 ;If you're reached the first char, end the subroutine.
+updateString: mov (r4), (r5)
+  cmp r1, r5 ;If you're reached the first char, end the subroutine.
   be endNextString
-  dec r0 ;Move to the previous char
+  dec r5 ;Move to the previous char
   br nextStringLoop
 
 wordIsEqual: mov r0, -(sp)
@@ -77,3 +137,19 @@ endWordIsEqual: mov r2, 14(sp) ;Save the return value before the input
   mov (sp)+, r1
   mov (sp)+, r0 ;Restore the values
   rts pc
+
+Setmin: .byte 'A
+Setmax: .byte 'C
+Delim: .byte ' ;this is a space
+ .even
+Dict: .word word1, word2, word3, word4, word5
+DictLen: .word 5
+Sent: .ascii <AB@>
+ .even
+X: .word 4
+MaxLen: .word 6
+word1: .ascii <AC@>
+word2: .ascii <B@>
+word3: .ascii <C@>
+word4: .ascii <@>
+word5: .ascii <AAA@>
