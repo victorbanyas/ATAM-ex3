@@ -1,0 +1,75 @@
+. = torg + 1000
+
+main:
+	mov pc, sp
+	tst -(sp)	;Initialize the stack
+	mov #p_word, r0 ;r1 points at the word
+	mov #prefix, r1  ;r2 points at the prefix
+	mov #3, r2		;r2 contains the maximal number of mistakes allowed
+	jsr pc, isPrefix
+	cmp r1, #1	
+	beq hooray
+	mov #0, r3
+	br quit
+hooray:
+	mov #1, r3
+quit:
+	halt
+	
+	
+isPrefix:
+	jsr pc, prefixCheck
+	cmp r1, #1
+	beq pref_conf
+	mov #0, r1
+pref_conf:
+	rts pc
+	
+prefixCheck:
+	mov r0, -(sp)
+	mov r1, -(sp)
+	mov r2, -(sp)
+cont_check:
+	cmpb (r1), #'@
+	beq is_pref		;If end of prefix is reached, then it's actually a prefix
+	cmpb (r0), #'@
+	beq n_pref		;If end of word is reached before, then it's not a prefix
+	cmpb (r1)+, (r0)+
+	beq cont_check		;Keep looking for a mistake, or run until end of prefix/word is reached
+	cmp r2, #0
+	beq n_pref		;If no more mistakes allowed, then it's not a prefix
+	dec r2		;A mistake was found
+	
+;In the following branches, we try to change the prefix as allowed in order to find match with the word.
+;Each time we make a single change, and call the subroutine recursively, while it tries to find a match for
+;the sub-prefix and the sub-word, which start at the committed change
+
+skip_let:		;Try to find match through skipping a letter (Making a substitution by the correct letter)
+	jsr pc, prefixCheck		;Continue checking the rest as a sub-prefix of a sub-word
+	cmp r1, #1		;If a match was found, there's no need to check further
+	beq is_pref
+sub_let:		;Try to find match through substracting a letter (Skipping a letter of the prefix only)
+	tstb -(r0)		;Return to the previous letter in the word (Auto-Increment effect)
+	jsr pc, prefixCheck
+	cmp r1, #1
+	beq is_pref
+add_let:		;Try to find a match through adding a letter (Skipping a letter of the word only)
+	tstb -(r1)		;Return to the previous letter in the prefix (Auto-Increment effect)
+	jsr pc, prefixCheck
+	cmp r1, #1
+	bne n_pref
+is_pref:		
+	mov #1, r1
+	mov (sp)+, r2
+	tst (sp)+
+	mov (sp)+, r0
+	rts pc
+n_pref:
+	mov (sp)+, r2
+	mov (sp)+, r1
+	mov (sp)+, r0
+	rts pc
+	
+	
+p_word: .ascii <encyclopedia@>
+prefix: .ascii <ebjyclpq@>
