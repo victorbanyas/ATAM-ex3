@@ -50,13 +50,13 @@ add_let:		;Try to find a match through adding a letter (Skipping a letter of the
 	bne n_pref
 is_pref:		
 	mov #1, r1
-	mov (sp)+, r2
-	tst (sp)+
+	mov (sp)+, r2	;Restore the values of the registers
+	tst (sp)+		;Except r1, which is determined to be 1 as the return value of the routine
 	mov (sp)+, r0
 	rts pc
 n_pref:
-	mov (sp)+, r2
-	mov (sp)+, r1
+	mov (sp)+, r2	;Restore the values of the registers
+	mov (sp)+, r1	;Except r1, which is determined to be 0 as the return value of the routine
 	mov (sp)+, r0
 	rts pc
 	
@@ -113,6 +113,69 @@ endNextString:
   rts pc
 updateString: mov (r4), r0(r1)
   cmp r0, #0 ;If you're reached the first char, end the subroutine.
-  be endNextString
+  beq endNextString
   dec r0 ;Move to the previous char
   br nextStringLoop
+
+  
+sentInDict:
+	mov r0, -(sp)
+	mov r1, -(sp)
+	mov r2, -(sp)
+	mov r3, -(sp)
+	mov r4, -(sp)
+	mov r5, -(sp)
+	mov #0, r5
+	movb 16(sp), r0 ;r0 points to Delim
+	movb 20(sp), r1	;r1 points to the sentence - array of chars (sent)
+	mov 22(sp), r2	;r2 points to the length of the dictionary (dictLen)
+	mov 24(sp), r3	;r3 points to the dictionary array (dict)
+nextWord:
+	mov r1, r4		;r4 points to the beginning of each word in the sentence
+
+sentLoop:
+	cmpb (r1), #'@		;If you've reached the end of the sentence, 
+	beq dictLoop		;Check the last word
+	cmpb (r1)+, (r0)
+	beq checkWord
+	br sentLoop
+checkWord:
+	mov #'@, -(r1)	;Replace the delim with @ for comparison between words
+	tst (r1)+	;Restore r1 to its place after the delim
+dictLoop:
+	cmp r5, (r2)	;Check if you've reached the last term in the dictionary
+	beq illSent		;If yes, then the word doesn't appear in the dictionary - The sentence is illegal
+	mul #2, r5		;If no, update r3 to point at the next term in the dictionary
+	add r5, r3
+	inc r5
+	mov r5, -(sp)	;Save the current index in stack
+	mov r3, -(sp)
+	mov r4, -(sp)
+	jsr pc, wordsEqual
+	mov (sp)+, r5	;Pop the return value of wordsEqual into r5
+	mov (sp)+, r4	
+	mov (sp)+, r3		;Pop out the values sent to wordsEqual
+	cmp r5, #1		;If wordsEqual didn't return 1, then continue checking other words in the dictionary
+	mov (sp)+, r5	;Restore the current index to r5. NOTE: This command doesn't affect the flags
+	bne dictLoop 
+	cmpb (r1), #'@		;If it did, and it was the last word in the sentence, then
+	beq legalSent		;it's a legal sentence
+	mov #0, r5		;If it wasn't, then we can proceed to the next word in the sentence
+	mov r5, r0 		;Reset r0 to point at the first term again
+	br nextWord		;proceed to the next word
+illSent:
+	mov #0, r0
+	br endSubr
+legalSent:
+	mov #1, r0
+endSubr:
+	mov r0, 14(sp)		;MAY BE PROBLEMATIC
+	mov (sp)+, r5
+	mov (sp)+, r4
+	mov (sp)+, r3
+	mov (sp)+, r2
+	mov (sp)+, r1
+	rts pc
+	
+	
+	
