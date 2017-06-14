@@ -11,7 +11,7 @@ main:
   jsr pc, nextString
   mov (sp)+, r2
   mov r0, -(sp)
-  jsr wordIsEqual
+  jsr pc, wordIsEqual
   mov #word2, r0
   jsr r5, isStart
   .word 2
@@ -22,7 +22,7 @@ main:
   mov (sp)+, r2
   mov #word1, r2
   mov r2, -(sp)
-  jsr wordIsEqual
+  jsr pc, wordIsEqual
   mov #word3, r0
   jsr r5, isStart
   .word 2
@@ -33,7 +33,7 @@ main:
   mov (sp)+, r2
   mov #word4, r2
   mov r2, -(sp)
-  jsr wordIsEqual
+  jsr pc, wordIsEqual
   mov #word4, r0
   jsr r5, isStart
   .word 2
@@ -43,7 +43,7 @@ main:
   jsr pc, nextString
   mov (sp)+, r2
   mov r0, -(sp)
-  jsr wordIsEqual
+  jsr pc, wordIsEqual
   mov #word5, r0
   jsr r5, isStart
   .word 2
@@ -53,7 +53,7 @@ main:
   jsr pc, nextString
   mov (sp)+, r2
   mov r0, -(sp)
-  jsr wordIsEqual
+  jsr pc, wordIsEqual
   halt
 
 
