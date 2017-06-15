@@ -29,7 +29,7 @@ mainloop:mov #Dict, r2
 	cmp r2, #1 ;Checks to see if str is a legal sentence.
 	bne endloop ;If not, jump to the end of the loop.
 	mov #str, r1
-	mov #X, r2
+	mov @#X, r2
 	mov #Sent, r0
 	jsr pc, isPrefix ;Checks if str is a valid prefix.
 	cmp r1, #1
@@ -95,7 +95,7 @@ cont_check:
 	cmpb (r1), #'@
 	beq is_pref		;If end of prefix is reached, then it's actually a prefix
 	cmpb (r0), #'@
-	beq n_pref		;If end of word is reached before, then it's not a prefix
+	beq end_word		;If end of word is reached before, then it's not a prefix
 	cmpb (r1)+, (r0)+
 	beq cont_check		;Keep looking for a mistake, or run until end of prefix/word is reached
 	cmp r2, #0
@@ -126,7 +126,15 @@ is_pref:
 	tst (sp)+		;Except r1, which is determined to be 1 as the return value of the routine
 	mov (sp)+, r0
 	rts pc
-n_pref:
+endWordLoop: dec r2
+end_word:
+	cmp r2, #0
+	beq n_pref
+	tstb (r1)+
+	cmpb (r1)+, #'@
+	bne endWordLoop
+	br is_pref
+n_pref:	
 	mov (sp)+, r2	;Restore the values of the registers
 	mov (sp)+, r1	;Except r1, which is determined to be 0 as the return value of the routine
 	mov (sp)+, r0
