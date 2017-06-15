@@ -3,10 +3,84 @@
 main:
 	mov pc, sp
 	tst -(sp)	;Initialize the stack
+	mov #MaxLen, r0
+	mov (r0), r0
+newlenloop: cmp r0, #0
+	be quit
+	mov r0, (sp)-
+	jsr pc, create_min_word
+mainloop:mov #Dict, r2
+	mov #DictLen, r3
+	mov #str, r4
+	mov #Delim, r5
+	mov #0, (sp)- ;Memory saved for return
+	mov r2, (sp)-
+	mov r3, (sp)-
+	mov r4, (sp)-
+	mov r5, (sp)-
+	jsr pc, sentInDict
+	mov 8(sp), r2 ;Moves the return param to r2
+	tst (sp)+
+	tst (sp)+
+	tst (sp)+
+	tst (sp)+
+	tst (sp)+
+	cmp r2, 1 ;Checks to see if str is a legal sentence.
+	bne endloop ;If not, jump to the end of the loop.
+	mov #str, r1
+	mov #X, r2
+	mov #Sent, r0
+	jsr pc, isPrefix ;Checks if str is a valid prefix.
+	cmp r1, 1
+	bne endloop
+	move #Output, r5
+	mov (sp)+, r1	;If we've found an str which is both a legal prefix and a
+copyloop: movb (r4)+, (r5)+
+	sob r1, copyloop
+	mov #'@, (r5)						;legal sentence, that means we've found a possible match.
+	halt									;Since we start at the largest size and the first word
+endloop:
+	mov #str, r2
+	mov (sp)+, r3
+	mov r2, -(sp)										;(lexicographicaly), once we find our first match we can
+	mov r3, -(sp)
+	jsr pc, nextString
+	tst (sp)+
+	tst(sp)+
+	mov #0, -(sp)
+	jsr r5, isStart
+	.word r3
+	.word r2
+	mov (sp)+, r1
+	cmp r1, 1
+	bne mainloop
+	dec r3
+	mov r3, r0
+	br newlenloop
+quit:
+	halt
+
+create_min_word: ;Receives the length from the stack, and
+	mov r0, -(sp)
+	mov 4(sp), r0 ;Moves the length to r0
+	mov r1, -(sp)
+	mov r2, -(sp)
+	mov #Setmin, r1
+	mov #str, r2
+minloop: movb (r1), (r2)+
+	sob r0, minloop
+	movb #'@, (r2)
+mov (sp)+, r2
+mov (sp)+, r1
+ mov(sp)+, r0
+ rts pc
+	
 quit:
 	halt
 	
-	
+
+buildMinWord: ;Receives the length through the 	
+
 isPrefix:
 	jsr pc, prefixCheck
 	cmp r1, #1
@@ -65,57 +139,84 @@ isStart:
   mov r1, -(sp)
   mov r2, -(sp)
   mov r3, -(sp) ;Saving the register's values for later.
-  mov r1, (r5)+ ;Moving length into r1(inline). COULD POTENTIALLY BE PROBLEMATIC
-  mov r2, (r5)+ ;Moving str address into r2;
-  mov r0, #Setmin
-  mov r5, #1 ;Setting the default return value to 1.
+  mov (r5)+, r1 ;Moving length into r1(inline). COULD POTENTIALLY BE PROBLEMATIC
+  mov (r5)+, r2 ;Moving str address into r2;
+  mov #Setmin, r0
+  mov #1, r3 ;Setting the default return value to 1.
 starterLoop:  cmpb (r0), (r2)+  ;Check if the current char is the minimal one.
   bne notStarter
   sob r1, starterLoop
   br endIsStart
-notStarter: mov r5, #0 ;Setting the return value to 0
-endIsStart: mov (sp)+, r3
-      mov (sp)+, r2
-      mov (sp)+, r1
-      mov (sp)+, r0 ;Restoring the values
-      tst (sp)+
-      mov r5, -(sp) ;Save the return value in the stack.
-      rts r5
-
+notStarter: mov #0, r3 ;Setting the return value to 0
+endIsStart: mov r3, 8(sp)
+	mov (sp)+, r3
+	mov (sp)+, r2
+	mov (sp)+, r1
+	mov (sp)+, r0 ;Restoring the values
+	rts r5
+  
+  
 nextString:
   mov r0, -(sp)
   mov r1, -(sp) ;Save the registers
-  mov 8(sp), r0 ;Save the length in r0
-  mov 10(sp), r1 ;Save the address in r1
+  mov 6(sp), r0 ;Save the length in r0
+  mov 8(sp), r1 ;Save the address in r1
   mov r2, -(sp)
   mov r3, -(sp)
   mov r4, -(sp)
+  mov r5, -(sp)
   mov #Delim, r2
   mov #Setmax, r3
   mov #Setmin, r4
-  
- nextStringLoop:
-  cmpb r0(r1), (r2)  ;COULD POTENTIALLY CAUSE PROBLEMS -compare the delim to the current one
-  be updateString
-  cmpb r0(r1), (r3) ;If the char isn't the delim, compare it to the biggest one in the alphabet
+  cmp r0, #0
+  beq endNextString
+  mov r1, r5
+  add r0, r5  ;r5 now points to the end of the string.
+nextStrLoop:
+  dec r5
+  cmpb (r5), (r2)  ;COULD POTENTIALLY CAUSE PROBLEMS -compare the delim to the current one
+  beq updateString
+  cmpb (r5), (r3) ;If the char isn't the delim, compare it to the biggest one in the alphabet
   bne nextChar
-  movb (r2), r0(r1) ;If the char is the biggest one in the alphabet, replace it with the delim
-contLoop: sob r0, nextStringLoop
-nextChar: ADD 1, 'r0(r1) ;COULD POTENTIALLY NOT WORK- move to the next character
-  cmp r0, #0 ;If this wasn't the first character, return to the loop
+  movb (r2), (r5) ;If the char is the biggest one in the alphabet, replace it with the delim
+  cmp r1, r5
+  beq endNextString
+contLoop: br nextStrLoop
+nextChar: incb (r5) ;COULD POTENTIALLY NOT WORK- move to the next character
+  cmp r5, r1 ;If this wasn't the first character, return to the loop
   bne contLoop
 endNextString:
+  mov (sp)+, r5
   mov (sp)+, r4
   mov (sp)+, r3
   mov (sp)+, r2
   mov (sp)+, r1
   mov (sp)+, r0
   rts pc
-updateString: mov (r4), r0(r1)
-  cmp r0, #0 ;If you're reached the first char, end the subroutine.
+updateString: movb (r4), (r5)
+  cmp r1, r5 ;If you're reached the first char, end the subroutine.
   beq endNextString
-  dec r0 ;Move to the previous char
-  br nextStringLoop
+  br nextStrLoop
+
+wordsEqual: mov r0, -(sp)
+  mov r1, -(sp)
+  mov 6(sp), r0 ;Move the first address into r0
+  mov 8(sp), r1 ;Move the second address into r1
+  mov r2, -(sp)
+  mov #1, r2 ;Set the return value to 1
+compLoop: cmpb (r0), (r1) ;Compare the letters
+  bne notEqual ;If they aren't rqual, leave the loop
+  cmpb (r0), #'@ ;If they're equal to the ending char, leave the loop
+  beq endWordsEqual
+  inc r0
+  inc r1
+  br compLoop ;Jump back to the loop if none of the conditions have been met
+notEqual: mov #0, r2 ;If there's no match, set the return value to 0
+endWordsEqual: mov r2, 14(sp) ;Save the return value before the input
+  mov (sp)+, r2
+  mov (sp)+, r1
+  mov (sp)+, r0 ;Restore the values
+  rts pc
 
   
 sentInDict:
@@ -177,5 +278,24 @@ endSubr:
 	mov (sp)+, r1
 	rts pc
 	
-	
+Setmin: .byte 'A
+Setmax: .byte 'C
+Delim: .byte ' ;this is a space
+ .even
+Dict: .word word1, word2, word3, word4, word5, word6, word7
+DictLen: .word 7
+Sent: .ascii <AB@>
+ .even
+X: .word 4
+MaxLen: .word 6
+word1: .ascii <AC@>
+word2: .ascii <B@>
+word3: .ascii <C@>
+word4: .ascii <@>
+word5: .ascii <AAA@>
+word6: .ascii <   @>
+word7: .ascii <CCC@>
+
+str: .blkw (MaxLen + 1)
+Output .word 30
 	
