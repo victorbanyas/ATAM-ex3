@@ -1,0 +1,308 @@
+;-----Full Program Test-------
+
+. = torg + 1000
+
+main:
+	mov pc, sp
+	tst -(sp)	;Initialize the stack
+	mov @#MaxLen, r0
+newlenloop: cmp r0, #0
+	beq quit
+	mov r0, -(sp)
+	;jsr pc, createMinWord
+mainloop:mov #Dict, r2
+	mov #DictLen, r3
+	mov #str, r4
+	mov #Delim, r5
+	mov #0, -(sp) ;Memory saved for return
+	mov r2, -(sp)
+	mov r3, -(sp)
+	mov r4, -(sp)
+	mov r5, -(sp)
+	jsr pc, sentInDict
+	mov 8(sp), r2 ;Moves the return param to r2
+	tst (sp)+
+	tst (sp)+
+	tst (sp)+
+	tst (sp)+
+	tst (sp)+
+	cmp r2, #1 ;Checks to see if str is a legal sentence.
+	bne endloop ;If not, jump to the end of the loop.
+	mov #str, r1
+	mov #X, r2
+	mov #Sent, r0
+	jsr pc, isPrefix ;Checks if str is a valid prefix.
+	cmp r1, #1
+	bne endloop
+	mov #Output, r5
+	mov (sp)+, r1	;If we've found an str which is both a legal prefix and a
+copyloop: movb (r4)+, (r5)+
+	sob r1, copyloop
+	movb #'@, (r5)						;legal sentence, that means we've found a possible match.
+	halt									;Since we start at the largest size and the first word
+endloop:
+	mov #str, r2
+	mov (sp)+, r3
+	mov r2, -(sp)										;(lexicographicaly), once we find our first match we can
+	mov r3, -(sp)
+	jsr pc, nextString
+	tst (sp)+
+	tst(sp)+
+	mov #0, -(sp)
+	jsr r5, isStart
+	.word r3
+	.word r2
+	mov (sp)+, r1
+	cmp r1, #1
+	bne mainloop
+	dec r3
+	mov r3, r0
+	br newlenloop
+quit:
+	halt
+
+createMinWord: ;Receives the length from the stack, and
+	mov r0, -(sp)
+	mov 4(sp), r0 ;Moves the length to r0
+	mov r1, -(sp)
+	mov r2, -(sp)
+	mov #Setmin, r1
+	mov #str, r2
+minloop: movb (r1), (r2)+
+	sob r0, minloop
+	movb #'@, (r2)
+mov (sp)+, r2
+mov (sp)+, r1
+ mov(sp)+, r0
+ rts pc
+	
+
+buildMinWord: ;Receives the length through the 	
+
+isPrefix:
+	jsr pc, prefixCheck
+	cmp r1, #1
+	beq pref_conf
+	mov #0, r1
+pref_conf:
+	rts pc
+	
+prefixCheck:
+	mov r0, -(sp)
+	mov r1, -(sp)
+	mov r2, -(sp)
+cont_check:
+	cmpb (r1), #'@
+	beq is_pref		;If end of prefix is reached, then it's actually a prefix
+	cmpb (r0), #'@
+	beq n_pref		;If end of word is reached before, then it's not a prefix
+	cmpb (r1)+, (r0)+
+	beq cont_check		;Keep looking for a mistake, or run until end of prefix/word is reached
+	cmp r2, #0
+	beq n_pref		;If no more mistakes allowed, then it's not a prefix
+	dec r2		;A mistake was found
+	
+;In the following branches, we try to change the prefix as allowed in order to find match with the word.
+;Each time we make a single change, and call the subroutine recursively, while it tries to find a match for
+;the sub-prefix and the sub-word, which start at the committed change
+
+skip_let:		;Try to find match through skipping a letter (Making a substitution by the correct letter)
+	jsr pc, prefixCheck		;Continue checking the rest as a sub-prefix of a sub-word
+	cmp r1, #1		;If a match was found, there's no need to check further
+	beq is_pref
+sub_let:		;Try to find match through substracting a letter (Skipping a letter of the prefix only)
+	tstb -(r0)		;Return to the previous letter in the word (Auto-Increment effect)
+	jsr pc, prefixCheck
+	cmp r1, #1
+	beq is_pref
+add_let:		;Try to find a match through adding a letter (Skipping a letter of the word only)
+	tstb -(r1)		;Return to the previous letter in the prefix (Auto-Increment effect)
+	jsr pc, prefixCheck
+	cmp r1, #1
+	bne n_pref
+is_pref:		
+	mov #1, r1
+	mov (sp)+, r2	;Restore the values of the registers
+	tst (sp)+		;Except r1, which is determined to be 1 as the return value of the routine
+	mov (sp)+, r0
+	rts pc
+n_pref:
+	mov (sp)+, r2	;Restore the values of the registers
+	mov (sp)+, r1	;Except r1, which is determined to be 0 as the return value of the routine
+	mov (sp)+, r0
+	rts pc
+	
+isStart:
+  mov r0, -(sp)
+  mov r1, -(sp)
+  mov r2, -(sp)
+  mov r3, -(sp) ;Saving the register's values for later.
+  mov (r5)+, r1 ;Moving length into r1(inline). COULD POTENTIALLY BE PROBLEMATIC
+  mov (r5)+, r2 ;Moving str address into r2;
+  mov #Setmin, r0
+  mov #1, r3 ;Setting the default return value to 1.
+starterLoop:  cmpb (r0), (r2)+  ;Check if the current char is the minimal one.
+  bne notStarter
+  sob r1, starterLoop
+  cmpb (r2), #'@
+  beq endIsStart
+notStarter: mov #0, r3 ;Setting the return value to 0
+endIsStart: mov r3, 8(sp)
+      mov (sp)+, r3
+      mov (sp)+, r2
+      mov (sp)+, r1
+      mov (sp)+, r0 ;Restoring the values
+      rts r5
+
+nextString:
+  mov r0, -(sp)
+  mov r1, -(sp) ;Save the registers
+  mov 6(sp), r0 ;Save the length in r0
+  mov 8(sp), r1 ;Save the address in r1
+  mov r2, -(sp)
+  mov r3, -(sp)
+  mov r4, -(sp)
+  mov r5, -(sp) ;Save the registers
+  mov #Delim, r2
+  mov #Setmax, r3
+	mov #Setmin, r4 ;Save the addresses of the values in the registers
+  cmp r0, #0 ;Check if the length of the word is 0
+  beq endNextString ;If it is, end the program
+  mov r1, r5
+  add r0, r5  ;r5 now points to the end of the string.
+  dec r5
+nextStrLoop:
+  cmpb (r5), (r2)  ;compare the delim to the current one
+  beq updateString
+  cmpb (r5), (r3) ;If the char isn't the delim, compare it to the biggest one in the alphabet
+  bne nextChar
+  movb (r2), (r5) ;If the char is the biggest one in the alphabet, replace it with the delim
+	br endNextString ;JUmp to the end.
+
+nextChar: incb (r5) ;move to the next character
+endNextString:
+  mov (sp)+, r5
+  mov (sp)+, r4
+  mov (sp)+, r3
+  mov (sp)+, r2
+  mov (sp)+, r1
+  mov (sp)+, r0 ;Restore the registers
+  rts pc
+updateString:
+	movb (r4), (r5) ;Move the first letter of the alphabet to replace delim
+  cmp r1, r5 ;If you're reached the first char, end the subroutine.
+  beq endNextString
+	dec r5 ;If not, you need to increase the next letter as well
+  br nextStrLoop
+
+wordsEqual: mov r0, -(sp)
+  mov r1, -(sp)
+  mov 6(sp), r0 ;Move the first address into r0
+  mov 8(sp), r1 ;Move the second address into r1
+  mov r2, -(sp)
+  mov #1, r2 ;Set the return value to 1
+compLoop: cmpb (r0), (r1) ;Compare the letters
+  bne notEqual ;If they aren't rqual, leave the loop
+  cmpb (r0), #'@ ;If they're equal to the ending char, leave the loop
+  beq endWordsEqual
+  inc r0
+  inc r1 ;Move to the next letter
+  br compLoop ;Jump back to the loop if none of the conditions have been met
+notEqual: mov #0, r2 ;If there's no match, set the return value to 0
+endWordsEqual: mov r2, 14(sp) ;Save the return value before the input
+  mov (sp)+, r2
+  mov (sp)+, r1
+  mov (sp)+, r0 ;Restore the values
+  rts pc
+
+  
+sentInDict:
+	mov r0, -(sp)
+	mov r1, -(sp)
+	mov r2, -(sp)
+	mov r3, -(sp)
+	mov r4, -(sp)
+	mov r5, -(sp)
+	mov #0, r5
+	mov 16(sp), r0 ;r0 points to Delim
+	mov 20(sp), r1	;r1 points to the sentence - array of chars (sent)
+	mov 22(sp), r2	;r2 points to the length of the dictionary (dictLen)
+	mov 24(sp), r3	;r3 points to the dictionary array (dict)
+nextWord:
+	mov r1, r4		;r4 points to the beginning of each word in the sentence
+
+sentLoop:
+	cmpb (r1), #'@		;If you've reached the end of the sentence, 
+	beq dictLoop		;Check the last word
+	cmpb (r1)+, (r0)
+	bne sentLoop
+	movb #'@, -(r1)	;Replace the delim with @ for comparison between words
+	tstb (r1)+	;Restore r1 to its place after the delim
+dictLoop:
+	cmp r5, (r2)	;Check if you've reached the last term in the dictionary
+	beq illSent		;If yes, then the word doesn't appear in the dictionary - The sentence is illegal
+	mov r3, -(sp)   ;Save the initial r3 value (Beginning of the dict array)
+	mov r5, -(sp)	;Store r5 temporarily in stack to perform multiplication, in order to find the correct term
+	mul #2, r5		;If no, update r3 to point at the next term in the dictionary
+	add r5, r3
+	mov (sp)+, r5
+	inc r5
+	mov r5, -(sp)	;Save the current index in stack
+	tst -(sp) 		;Allocate space for the return value of wordsEqual
+	mov (r3), -(sp)
+	mov r4, -(sp)
+	jsr pc, wordsEqual
+	mov (sp)+, r4	
+	tst (sp)+		;The current value of r3 is no longer relevant, as it will be updated again further
+	mov (sp)+, r5	;Pop the return value of wordsEqual into r5
+	cmp r5, #1		;If wordsEqual didn't return 1, then continue checking other words in the dictionary
+	bne preDictLoop 
+	mov (sp)+, r5	;Restore the current index to r5
+	mov (sp)+, r3 	;Restore the initial r3 value (Beginning of dict array)
+	cmpb (r1), #'@		;If wordsEqual returned 1, and it was the last word in the sentence, then
+	beq legalSent		;it's a legal sentence
+	movb (r0), -(r1)	;If it wasn't the last word, replace back the @ char with the delim
+	tstb (r1)+		;and restore r1 back to its place after the delim
+	mov #0, r5		;If it wasn't, then we can proceed to the next word in the sentence
+	br nextWord		;proceed to the next word
+preDictLoop:
+	mov (sp)+, r5	;Restore the current index to r5
+	mov (sp)+, r3 	;Restore the initial r3 value (Beginning of dict array)
+	br dictLoop
+illSent:
+	mov #0, r0
+	br endSubr
+legalSent:
+	mov #1, r0
+endSubr:
+	mov (sp)+, r5
+	mov (sp)+, r4
+	mov (sp)+, r3
+	mov (sp)+, r2
+	mov (sp)+, r1
+	mov r0, 14(sp)
+	mov (sp)+, r0
+	rts pc
+	
+Setmin: .byte 'A
+Setmax: .byte 'C
+Delim: .byte ' ;this is a space
+ .even
+Dict: .word word1, word2, word3, word4, word5, word6, word7
+DictLen: .word 7
+Sent: .ascii <AB@>
+ .even
+X: .word 4
+MaxLen: .word 6
+word1: .ascii <AC@>
+word2: .ascii <B@>
+word3: .ascii <C@>
+word4: .ascii <@>
+word5: .ascii <AAA@>
+word6: .ascii <   @>
+word7: .ascii <CCC@>
+
+str: .ascii <AC B B@>
+.even
+Output: .word 30
+	
