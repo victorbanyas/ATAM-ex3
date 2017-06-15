@@ -227,8 +227,8 @@ sentInDict:
 	mov r4, -(sp)
 	mov r5, -(sp)
 	mov #0, r5
-	movb 16(sp), r0 ;r0 points to Delim
-	movb 20(sp), r1	;r1 points to the sentence - array of chars (sent)
+	mov 16(sp), r0 ;r0 points to Delim
+	mov 20(sp), r1	;r1 points to the sentence - array of chars (sent)
 	mov 22(sp), r2	;r2 points to the length of the dictionary (dictLen)
 	mov 24(sp), r3	;r3 points to the dictionary array (dict)
 nextWord:
@@ -241,41 +241,50 @@ sentLoop:
 	beq checkWord
 	br sentLoop
 checkWord:
-	mov #'@, -(r1)	;Replace the delim with @ for comparison between words
-	tst (r1)+	;Restore r1 to its place after the delim
+	movb #'@, -(r1)	;Replace the delim with @ for comparison between words
+	tstb (r1)+	;Restore r1 to its place after the delim
 dictLoop:
 	cmp r5, (r2)	;Check if you've reached the last term in the dictionary
 	beq illSent		;If yes, then the word doesn't appear in the dictionary - The sentence is illegal
+	mov r3, -(sp)   ;Save the initial r3 value (Beginning of the dict array)
+	mov r5, -(sp)	;Store r5 temporarily in stack to perform multiplication, in order to find the correct term
 	mul #2, r5		;If no, update r3 to point at the next term in the dictionary
 	add r5, r3
+	mov (sp)+, r5
 	inc r5
 	mov r5, -(sp)	;Save the current index in stack
-	mov r3, -(sp)
+	tst -(sp) 		;Allocate space for the return value of wordsEqual
+	mov (r3), -(sp)
 	mov r4, -(sp)
 	jsr pc, wordsEqual
-	mov (sp)+, r5	;Pop the return value of wordsEqual into r5
 	mov (sp)+, r4	
-	mov (sp)+, r3		;Pop out the values sent to wordsEqual
+	tst (sp)+		;The current value of r3 is no longer relevant, as it will be updated again further
+	mov (sp)+, r5	;Pop the return value of wordsEqual into r5
 	cmp r5, #1		;If wordsEqual didn't return 1, then continue checking other words in the dictionary
-	mov (sp)+, r5	;Restore the current index to r5. NOTE: This command doesn't affect the flags
-	bne dictLoop 
-	cmpb (r1), #'@		;If it did, and it was the last word in the sentence, then
+	bne preDictLoop 
+	mov (sp)+, r5	;Restore the current index to r5
+	mov (sp)+, r3 	;Restore the initial r3 value (Beginning of dict array)
+	cmpb (r1), #'@		;If wordsEqual returned 1, and it was the last word in the sentence, then
 	beq legalSent		;it's a legal sentence
 	mov #0, r5		;If it wasn't, then we can proceed to the next word in the sentence
-	mov r5, r0 		;Reset r0 to point at the first term again
 	br nextWord		;proceed to the next word
+preDictLoop:
+	mov (sp)+, r5	;Restore the current index to r5
+	mov (sp)+, r3 	;Restore the initial r3 value (Beginning of dict array)
+	br dictLoop
 illSent:
 	mov #0, r0
 	br endSubr
 legalSent:
 	mov #1, r0
 endSubr:
-	mov r0, 14(sp)		;MAY BE PROBLEMATIC
 	mov (sp)+, r5
 	mov (sp)+, r4
 	mov (sp)+, r3
 	mov (sp)+, r2
 	mov (sp)+, r1
+	mov r0, 14(sp)
+	mov (sp)+, r0
 	rts pc
 	
 Setmin: .byte 'A
