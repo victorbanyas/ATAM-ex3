@@ -1,0 +1,114 @@
+;-------sentInDict Test-----------
+
+. = torg + 1000
+
+main:
+	mov pc, sp
+	tst -(sp)
+	tst -(sp)
+	mov #dict, -(sp)
+	mov #dictLen, -(sp)
+	mov #sent1, -(sp)
+	mov #delim, -(sp)
+	jsr pc, sentInDict
+	mov 10(sp), r0 ;r0 should have 1
+	mov #sent2, 2(sp)
+	jsr pc, sentInDict
+	tst (sp)+
+	tst (sp)+
+	tst (sp)+
+	tst (sp)+
+	mov (sp)+, r1	;r1 should have 0
+	
+quit:
+	halt
+
+
+wordsEqual: mov r0, -(sp)
+  mov r1, -(sp)
+  mov r0, 8(sp) ;Move the first address into r0
+  mov r1, 10(sp) ;Move the second address into r1
+  mov r2, -(sp)
+  mov #1, r2 ;Set the return value to 1
+compLoop: cmpb (r0)+, (r1)+ ;Compare the letters
+  bne notEqual ;If they aren't rqual, leave the loop
+  cmpb (r0), #'@ ;If they're equal to the ending char, leave the loop
+  beq endWordIsEqual
+  br compLoop ;Jump back to the loop if none of the conditions have been met
+notEqual: mov #0, r2 ;If there's no match, set the return value to 0
+endWordIsEqual: mov r2, 14(sp) ;Save the return value before the input
+  mov (sp)+, r2
+  mov (sp)+, r1
+  mov (sp)+, r0 ;Restore the values
+  rts pc
+
+sentInDict:
+	mov r0, -(sp)
+	mov r1, -(sp)
+	mov r2, -(sp)
+	mov r3, -(sp)
+	mov r4, -(sp)
+	mov r5, -(sp)
+	mov #0, r5
+	mov 16(sp), r0 ;r0 points to Delim
+	mov 20(sp), r1	;r1 points to the sentence - array of chars (sent)
+	mov 22(sp), r2	;r2 points to the length of the dictionary (dictLen)
+	mov 24(sp), r3	;r3 points to the dictionary array (dict)
+nextWord:
+	mov r1, r4		;r4 points to the beginning of each word in the sentence
+
+sentLoop:
+	cmpb (r1), #'@		;If you've reached the end of the sentence, 
+	beq dictLoop		;Check the last word
+	cmpb (r1)+, (r0)
+	beq checkWord
+	br sentLoop
+checkWord:
+	mov #'@, -(r1)	;Replace the delim with @ for comparison between words
+	tst (r1)+	;Restore r1 to its place after the delim
+dictLoop:
+	cmp r5, (r2)	;Check if you've reached the last term in the dictionary
+	beq illSent		;If yes, then the word doesn't appear in the dictionary - The sentence is illegal
+	mov r5, -(sp)	;Store r5 temporarily in stack to perform multiplication, in order to find the correct term
+	mul #2, r5		;If no, update r3 to point at the next term in the dictionary
+	add r5, r3
+	mov (sp)+, r5
+	inc r5
+	mov r5, -(sp)	;Save the current index in stack
+	tst -(sp) 		;Allocate space for the return value of wordsEqual
+	mov r3, -(sp)
+	mov r4, -(sp)
+	jsr pc, wordsEqual
+	mov (sp)+, r4	
+	mov (sp)+, r3		;Pop out the values sent to wordsEqual
+	mov (sp)+, r5	;Pop the return value of wordsEqual into r5
+	cmp r5, #1		;If wordsEqual didn't return 1, then continue checking other words in the dictionary
+	mov (sp)+, r5	;Restore the current index to r5. NOTE: This command doesn't affect the flags
+	bne dictLoop 
+	cmpb (r1), #'@		;If it did, and it was the last word in the sentence, then
+	beq legalSent		;it's a legal sentence
+	mov #0, r5		;If it wasn't, then we can proceed to the next word in the sentence
+	mov r5, r0 		;Reset r0 to point at the first term again
+	br nextWord		;proceed to the next word
+illSent:
+	mov #0, r0
+	br endSubr
+legalSent:
+	mov #1, r0
+endSubr:
+	mov (sp)+, r5
+	mov (sp)+, r4
+	mov (sp)+, r3
+	mov (sp)+, r2
+	mov (sp)+, r1
+	mov r0, 12(sp)
+	rts pc
+	
+sent1: .ascii <Hello World@> ;legal sentence
+sent2: .ascii <Ho  Ho Ho@> ;illegal sentence
+dict: .word word1, word2, word3
+dictLen: .word 3
+word1: .ascii <Hello@>
+word2: .ascii <Holy@>
+word3: .ascii <World@>
+delim: .byte '  ;this is a space
